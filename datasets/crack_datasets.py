@@ -21,7 +21,6 @@ class Crack_Datasets(data.Dataset):
     def __getitem__(self, index) :
         image,label = read_files(self.data_root, self.imgID[index].strip(), self.img_size, mode=self.mode)
 
-
         # augmentation
         if self.mode == 'train':
             image,label = random_scale_and_creat_patch(image,label,self.img_size[0],self.img_size[1])
@@ -74,7 +73,15 @@ def cv_imread(file_path):
 
 
 def np2Tensor(array):
-    tensor = torch.FloatTensor(array.transpose(2,0,1).astype(float))
+    if len(array.shape) == 4 and array.shape[-1] == 1:
+        array = array.squeeze(axis=-1)
+    if len(array.shape) == 2:  # 2D array (grayscale)
+        tensor = torch.FloatTensor(array[np.newaxis, :, :].astype(float))  # Add a new axis for channels
+    elif len(array.shape) == 3:  # 3D array (multi-channel)
+        tensor = torch.FloatTensor(array.transpose(2, 0, 1).astype(float))  # Transpose to (channels, height, width)
+    else:
+        raise ValueError(f"Unexpected array shape: {array.shape}")
+    # tensor = torch.FloatTensor(array.transpose(2,0,1).astype(float))
     return tensor
 
 
@@ -109,11 +116,16 @@ def random_scale_and_creat_patch(image, label, img_size_w, img_size_h):
 def random_flip(image, label):
     if r.random() < 0.5:
         image = cv2.flip(image, 0)
+        if len(label.shape) > 2:
+            label = np.squeeze(label)
+        # print("Label shape:", label.shape)
         label = cv2.flip(label, 0)
         label = np.expand_dims(label, axis=-1)
 
     if r.random() < 0.5:
         image = cv2.flip(image, 1)
+        if len(label.shape) > 2:
+            label = np.squeeze(label)
         label = cv2.flip(label, 1)
         label = np.expand_dims(label, axis=-1)
     return image, label

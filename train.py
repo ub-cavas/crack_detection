@@ -2,7 +2,7 @@ import argparse
 from distutils.command.config import config
 import os
 import random
-from symbol import parameters
+# from symbol import parameters
 from webbrowser import get
 import numpy as np
 import torch
@@ -14,12 +14,12 @@ from trainer import trainer
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--root_path', type=str, 
-                        default='/home/ai3/student/zhaonan/crack_dataset/crackls315', 
+                        default='datasets/CrackLS315', 
                         help='data dir')
     parser.add_argument('--num_classes', type=int, default=1, help='output channel of network')
     parser.add_argument('--output_dirs', type=str, default='output/crackls315', help='output dir')
     parser.add_argument('--max_epochs', type=int, default=100, help='maximum epoch number to train')
-    parser.add_argument('--batch_size', type=int, default=16, help='batch_size per gpu')
+    parser.add_argument('--batch_size', type=int, default=6, help='batch_size per gpu')
     parser.add_argument('--n_gpu', type=int, default=2, help='total gpu')
     parser.add_argument('--deterministic', type=int, default=1, help='whether use deterministic training')
     parser.add_argument('--base_lr', type=float, default=0.001, help='segmentation network learning rate')
