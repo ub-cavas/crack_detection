@@ -72,11 +72,36 @@
 
 # print("train.txt and val.txt files created successfully.")
 
+# import torch
+
+# torch.cuda.empty_cache()
+
+# import gc
+# # del variables
+# gc.collect()
+
+import scipy
 import torch
+import torchvision
+import tqdm
+import ml_collections
+import medpy
+import h5py
+import cv2
+import einops
+import timm
+import yacs
+import numpy
 
-torch.cuda.empty_cache()
-
-import gc
-# del variables
-gc.collect()
-
+print(f"scipy {scipy.__version__}")
+print(f"torch {torch.__version__}")
+print(f"torchvision {torchvision.__version__}")
+print(f"tqdm {tqdm.__version__}")
+# print(f"{ml_collections.__version__}")
+print(f"medpy {medpy.__version__}")
+print(f"h5py {h5py.__version__}")
+print(f"opencv {cv2.__version__}")
+print(f"einops {einops.__version__}")
+print(f"timm {timm.__version__}")
+# print(f"{yacs.__version__}")
+print(f"numpy {numpy.__version__}")

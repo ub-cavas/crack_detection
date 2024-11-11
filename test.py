@@ -17,12 +17,13 @@ import cv2
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--root_path', type=str,
-                     default='/home/ai3/student/zhaonan/crack_dataset/CrackLS315_ori_test_40',
+                    default='datasets\CrackLS80\val.txt',
+                    #  default='/home/ai3/student/zhaonan/crack_dataset/CrackLS315_ori_test_40',
                     # default='/home/ai3/student/zhaonan/crack_dataset/ct260_crop_test_200',
                     help='data dir')
 parser.add_argument('--num_classes', type=int, default=1, help='output channel of network')
 parser.add_argument('--output_dir', type=str, default='output', help='output dir')
-parser.add_argument('--checkpoints',type=str, default='output/crackls315/epoch_69.pth', help='weights')
+parser.add_argument('--checkpoints',type=str, default='output/crackls80/epoch_69.pth', help='weights')
 parser.add_argument('--batch_size', type=int, default=1, help='batch_size per gpu')
 parser.add_argument('--img_size', type=list, default=[512,512], help='input patch size of network input')
 parser.add_argument('--seed', type=int, default=44, help='random seed')
