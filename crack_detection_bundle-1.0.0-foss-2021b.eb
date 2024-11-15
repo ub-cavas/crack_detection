@@ -13,14 +13,15 @@ toolchain = {'name': 'foss', 'version': '2021b'}   # Keep the toolchain version 
 
 # Specify dependencies, like Python and SciPy bundle
 dependencies = [
-    ('Python', '3.11.10'),   # Use the version required for your project
+    ('Python', '3.9.6'),   # Use the version required for your project
     ('SciPy-bundle', '2021.10'),
+    # ('CUDA', '11.8'), # Adding cuda as a dependency instead of version
 ]
 
 # List of Python packages from your requirements.txt
 exts_list = [
-    ('torch', '2.4.1+cu118'),      # Replace versions as needed
-    ('torchvision', '0.19.1+cpu'),
+    ('torch', '2.4.1'),      # Replace versions as needed
+    ('torchvision', '0.19.1'),
     ('numpy', '1.24.3'),
     ('tqdm', '4.66.5'),
     ('ml-collections', '0.1.1'),
