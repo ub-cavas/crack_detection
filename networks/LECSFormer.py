@@ -1,19 +1,20 @@
-import torch
-import torch.nn as nn
-import torch.utils.checkpoint as checkpoint
+# Installed Packages
 from einops import rearrange
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+import torch
+import torch.nn as nn
 import torch.nn.functional as F
+import torch.utils.checkpoint as checkpoint
 
 
 class PatchEmbed(nn.Module):
-    def __init__(self,img_size=224, patch_size=4, in_channels=3, embed_dim=64, norm_layer=nn.BatchNorm2d):
+    def __init__(self, img_size=224, patch_size=4, in_channels=3, embed_dim=64, norm_layer=nn.BatchNorm2d):
         super().__init__()
 
         self.img_size = to_2tuple(img_size)
         self.patch_size = to_2tuple(patch_size)
         self.patches_resolution = [self.img_size[0] // self.patch_size[0], self.img_size[1] // self.patch_size[1]]
-        self.num_patches = self.patches_resolution[0] * self.patches_resolution[1] 
+        self.num_patches = self.patches_resolution[0] * self.patches_resolution[1]
 
         self.in_channels = in_channels
         self.embed_dim = embed_dim
@@ -24,7 +25,6 @@ class PatchEmbed(nn.Module):
 
         self.norm1 = norm_layer(embed_dim)
         self.norm2 = norm_layer(embed_dim)
-
             
     def forward(self, x):
         _, _, H, W = x.shape
@@ -35,16 +35,15 @@ class PatchEmbed(nn.Module):
         x = self.proj2(x)
         x = self.norm2(x)
         x = self.activate2(x)
-        x = x.flatten(2).transpose(1,2)
+        x = x.flatten(2).transpose(1, 2)
         return x
-        
 
 
 class BasicLayer(nn.Module):
     
     def __init__(self, dim, input_resolution, depth, num_heads, split_size,
-                mlp_ratio=4., qkv_bias=False, qk_scale=None, drop=0.1, attn_drop=0.1,
-                drop_path=0.1, norm_layer=nn.LayerNorm, downsample=None, use_checkpoint=False):
+                 mlp_ratio=4., qkv_bias=False, qk_scale=None, drop=0.1, attn_drop=0.1,
+                 drop_path=0.1, norm_layer=nn.LayerNorm, downsample=None, use_checkpoint=False):
         super().__init__()
 
         self.dim = dim
@@ -55,43 +54,42 @@ class BasicLayer(nn.Module):
         if depth == 1:
             self.blocks = nn.ModuleList([
                 LECSWinBlock(dim=dim, num_heads=num_heads, resolution=input_resolution, mlp_ratio=mlp_ratio,
-                            qkv_bias=qkv_bias, qk_scale=qk_scale, split_size=split_size, drop=drop, attn_drop=attn_drop,
-                            drop_path=drop_path[0] if isinstance(drop_path,list) else drop_path, norm_layer=norm_layer)
+                             qkv_bias=qkv_bias, qk_scale=qk_scale, split_size=split_size, drop=drop, attn_drop=attn_drop,
+                             drop_path=drop_path[0] if isinstance(drop_path, list) else drop_path, norm_layer=norm_layer)
             ])
         else:
             self.blocks = nn.ModuleList([
                 LECSWinBlock(dim=dim, num_heads=num_heads, resolution=input_resolution, mlp_ratio=mlp_ratio,
-                            qkv_bias=qkv_bias, qk_scale=qk_scale, split_size=split_size, drop=drop, attn_drop=attn_drop,
-                            drop_path=drop_path[0] if isinstance(drop_path,list) else drop_path, norm_layer=norm_layer),
+                             qkv_bias=qkv_bias, qk_scale=qk_scale, split_size=split_size, drop=drop, attn_drop=attn_drop,
+                             drop_path=drop_path[0] if isinstance(drop_path, list) else drop_path, norm_layer=norm_layer),
 
                 SLECSWinBlock(dim=dim, num_heads=num_heads, resolution=input_resolution, mlp_ratio=mlp_ratio,
-                            qkv_bias=qkv_bias, qk_scale=qk_scale, split_size=split_size, drop=drop, attn_drop=attn_drop,
-                            drop_path=drop_path[1] if isinstance(drop_path,list) else drop_path, norm_layer=norm_layer)
+                              qkv_bias=qkv_bias, qk_scale=qk_scale, split_size=split_size, drop=drop, attn_drop=attn_drop,
+                              drop_path=drop_path[1] if isinstance(drop_path, list) else drop_path, norm_layer=norm_layer)
             ])
         # patch merge layer
         if downsample is not None:
-            self.downsample = downsample(input_resolution,dim//2, dim)
+            self.downsample = downsample(input_resolution, dim // 2, dim)
         else:
             self.downsample = None
     
-    def forward(self,x):
+    def forward(self, x):
         if self.downsample is not None:
             x = self.downsample(x)
         for blk in self.blocks:
             if self.use_checkpoint:
-                x = checkpoint.checkpoint(blk,x)
+                x = checkpoint.checkpoint(blk, x)
             else:
                 x = blk(x)
         return x
 
-        
 
 class LECSWinBlock(nn.Module):
     def __init__(self, dim, resolution, num_heads,
-                split_size=7, mlp_ratio=4, qkv_bias=False, qk_scale=None,
-                drop=0.1, attn_drop=0.1, drop_path=0.1,
-                act_layer=nn.GELU, norm_layer=nn.LayerNorm,
-                ):
+                 split_size=7, mlp_ratio=4, qkv_bias=False, qk_scale=None,
+                 drop=0.1, attn_drop=0.1, drop_path=0.1,
+                 act_layer=nn.GELU, norm_layer=nn.LayerNorm,
+                 ):
         super().__init__()
         self.dim = dim
         self.num_heads = num_heads
@@ -101,16 +99,16 @@ class LECSWinBlock(nn.Module):
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
         self.norm1 = norm_layer(dim)
         self.branch_num = 2
-        self.proj = nn.Linear(dim,dim)
+        self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(drop)
 
         self.attns = nn.ModuleList([
             CSWMHSA(
                 dim // 2, resolution=self.resolution, idx=i,
-                split_size=split_size, num_heads=num_heads//2, dim_out=dim//2,
-                qk_scale=qk_scale,attn_drop=attn_drop)
+                split_size=split_size, num_heads=num_heads // 2, dim_out=dim // 2,
+                qk_scale=qk_scale, attn_drop=attn_drop)
             for i in range(self.branch_num)
-            ])
+        ])
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.lem = nn.Sequential(
             nn.Conv2d(dim, dim, groups=dim, kernel_size=3, stride=1, padding=1),
@@ -123,24 +121,24 @@ class LECSWinBlock(nn.Module):
             nn.GELU())
             
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
-        self.mlp = LEMLP(resolution=resolution,in_features=dim,hidden_features=mlp_hidden_dim,act_layer=act_layer,drop=drop)
+        self.mlp = LEMLP(resolution=resolution, in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
         self.norm2 = norm_layer(dim)
         
-    def forward(self,x):
+    def forward(self, x):
         H, W = self.resolution[0], self.resolution[1]
         B, L, C = x.shape
         assert L == H * W, "flatten img_tokens has wrong size"
         short_cut = x
-        ## LEM
+        # LEM
         x_ = rearrange(x, 'b (h w) c -> b c h w', h=H, w=W)
         lem = self.lem(x_)
         lem = rearrange(lem, ' b c h w -> b (h w) c', h=H, w=W)
-        ## attn
+        # attn
         qkv = self.qkv(x).reshape(B, H, W, 3, C).permute(0, 3, 4, 1, 2)
         if self.branch_num == 2:
-            x1 = self.attns[0](qkv[:, :, :C//2, :, :])
-            x2 = self.attns[1](qkv[:, :, C//2:, :, :])
-            attended_x = torch.cat([x1,x2],dim=2)
+            x1 = self.attns[0](qkv[:, :, :C // 2, :, :])
+            x2 = self.attns[1](qkv[:, :, C // 2:, :, :])
+            attended_x = torch.cat([x1, x2], dim=2)
         else:
             attended_x = self.attns[0](qkv)
         attended_x = self.norm1(self.proj(attended_x))  # post-norm
@@ -192,19 +190,20 @@ class SLECSWinBlock(nn.Module):
             nn.GELU())
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
         self.mlp = LEMLP(resolution=resolution, in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer,
-                        drop=drop,
-                        )
+                         drop=drop,
+                         )
         self.norm2 = norm_layer(dim)
+
     def forward(self, x):
         H, W = self.patches_resolution[0], self.patches_resolution[1]
         B, L, C = x.shape
         assert L == H * W, "flatten img_tokens has wrong size"
         short_cut = x
-        ## LEM
+        # LEM
         x_ = rearrange(x, 'b (h w) c -> b c h w', h=H, w=W)
         lem = self.lem(x_)
         lem = rearrange(lem, ' b c h w -> b (h w) c', h=H, w=W)
-        ## attn
+        # attn
         qkv = self.qkv(x).reshape(B, H, W, 3, C).permute(0, 3, 4, 1, 2)
         if self.branch_num == 2:
             x1 = self.attns[0](qkv[:, :, :C // 2, :, :])
@@ -219,7 +218,7 @@ class SLECSWinBlock(nn.Module):
         nwc = self.nwc(nwc)
         nwc = rearrange(nwc, ' b c h w -> b (h w) c', h=H, w=W)
         x = x + nwc
-        x = x + self.drop_path(self.norm2(self.mlp(x))) 
+        x = x + self.drop_path(self.norm2(self.mlp(x)))
         return x
 
 
@@ -250,7 +249,6 @@ class LEMLP(nn.Module):
         return x
 
 
-
 class Merge_Block(nn.Module):
     def __init__(self, resolution, dim, dim_out, norm_layer=nn.BatchNorm2d):
         super().__init__()
@@ -261,7 +259,7 @@ class Merge_Block(nn.Module):
 
     def forward(self, x):
         B, new_HW, C = x.shape
-        H, W = self.resolution[0]*2, self.resolution[1]*2
+        H, W = self.resolution[0] * 2, self.resolution[1] * 2
         assert new_HW == H * W, 'error size'
         x = x.transpose(-2, -1).contiguous().view(B, C, H, W)
         x = self.act(self.norm(self.conv(x)))
@@ -270,11 +268,12 @@ class Merge_Block(nn.Module):
         return x
 
 
-def img2windows(img, H_sp, W_sp):    
-    B,C,H,W = img.shape
+def img2windows(img, H_sp, W_sp):
+    B, C, H, W = img.shape
     img = img.view(B, C, H // H_sp, H_sp, W // W_sp, W_sp)
-    img = img.permute(0, 2, 4, 3, 5, 1).contiguous().reshape(-1,H_sp*W_sp,C)
+    img = img.permute(0, 2, 4, 3, 5, 1).contiguous().reshape(-1, H_sp * W_sp, C)
     return img
+
 
 def windows2img(img_splits_hw, H_sp, W_sp, H, W):
     B = int(img_splits_hw.shape[0] / (H * W / H_sp / W_sp))
@@ -282,9 +281,11 @@ def windows2img(img_splits_hw, H_sp, W_sp, H, W):
     img = img.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, -1)
     return img
 
+
 def img2windows_shuffle(img, H_sp, W_sp, head):
     img = rearrange(img, 'b (h d) (H_sp hh) (W_sp ww) -> (b hh ww) h (H_sp W_sp) d', h=head, H_sp=H_sp, W_sp=W_sp)
     return img
+
 
 def windows2img_shuffle(img_splits_hw, H_sp, W_sp, H, W, head):
     B = int(img_splits_hw.shape[0] / (H * W // H_sp // W_sp))
@@ -295,7 +296,7 @@ def windows2img_shuffle(img_splits_hw, H_sp, W_sp, H, W, head):
 
 
 class CSWMHSA(nn.Module):
-    def __init__(self,dim, resolution, idx, split_size, num_heads, dim_out=None, attn_drop=0.1,qk_scale=None):
+    def __init__(self, dim, resolution, idx, split_size, num_heads, dim_out=None, attn_drop=0.1, qk_scale=None):
         super().__init__()
         self.dim = dim
         self.dim_out = dim_out or dim
@@ -319,21 +320,21 @@ class CSWMHSA(nn.Module):
         self.attn_drop = nn.Dropout(attn_drop)
     
     def img2cswin(self, x):
-        _,C,_,_ = x.shape
-        x = img2windows(x, self.H_sp, self.W_sp)   
-        x = x.reshape(-1, self.H_sp*self.W_sp, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3).contiguous()
+        _, C, _, _ = x.shape
+        x = img2windows(x, self.H_sp, self.W_sp)
+        x = x.reshape(-1, self.H_sp * self.W_sp, self.num_heads, C // self.num_heads).permute(0, 2, 1, 3).contiguous()
         return x
 
-    def get_lepe(self,x,func):
-        _,C,_,_ = x.shape
+    def get_lepe(self, x, func):
+        _, C, _, _ = x.shape
         v = self.img2cswin(x) # value
         x = self.img2cswin(x).reshape(-1, C, self.H_sp, self.W_sp)  # B', C, H', W'
-        lepe = func(x).reshape(-1,self.num_heads, C // self.num_heads, self.H_sp*self.W_sp).permute(0,1,3,2).contiguous()
+        lepe = func(x).reshape(-1, self.num_heads, C // self.num_heads, self.H_sp * self.W_sp).permute(0, 1, 3, 2).contiguous()
         return v, lepe
         
     def forward(self, x):
         B, _, C, H, W = x.shape
-        ## pading for split windows
+        # pading for split windows
         H_pad = (self.H_sp - H % self.H_sp) % self.H_sp
         W_pad = (self.W_sp - W % self.W_sp) % self.W_sp
         top_pad = H_pad // 2
@@ -343,7 +344,7 @@ class CSWMHSA(nn.Module):
         H_ = H + H_pad
         W_ = W + W_pad
 
-        qkv = F.pad(x, [left_pad, right_pad, top_pad, down_pad])  ### B,3,C,H',W'
+        qkv = F.pad(x, [left_pad, right_pad, top_pad, down_pad])  # B,3,C,H',W'
         qkv = qkv.permute(1, 0, 2, 3, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]
 
@@ -352,11 +353,11 @@ class CSWMHSA(nn.Module):
         k = self.img2cswin(k)
         v, lepe = self.get_lepe(v, self.get_v)
 
-        attn = (q @ k.transpose(-2,-1))
-        attn = nn.functional.softmax(attn,dim=-1,dtype=attn.dtype)
+        attn = (q @ k.transpose(-2, -1))
+        attn = nn.functional.softmax(attn, dim=-1, dtype=attn.dtype)
         attn = self.attn_drop(attn)
         x = (attn @ v) + lepe
-        x = x.transpose(1,2).reshape(-1, self.H_sp*self.W_sp, C)
+        x = x.transpose(1, 2).reshape(-1, self.H_sp * self.W_sp, C)
 
         # windows2img
         x = windows2img(x, self.H_sp, self.W_sp, H_, W_)
@@ -366,7 +367,7 @@ class CSWMHSA(nn.Module):
 
 
 class SCSWMHSA(nn.Module):
-    def __init__(self, dim, resolution, idx, split_size, num_heads, dim_out=None, attn_drop=0.1,qk_scale=None):
+    def __init__(self, dim, resolution, idx, split_size, num_heads, dim_out=None, attn_drop=0.1, qk_scale=None):
         super().__init__()
         self.dim = dim
         self.dim_out = dim_out or dim
@@ -397,14 +398,14 @@ class SCSWMHSA(nn.Module):
         B, C, H, W = x.shape
         v = self.im2cswin_shuffle(x) # value
         x = x.view(B, C, self.H_sp, H // self.H_sp, self.W_sp, W // self.W_sp)
-        x = x.permute(0, 3, 5, 1, 2, 4).contiguous().reshape(-1, C, self.H_sp, self.W_sp)  
-        lepe = func(x) 
+        x = x.permute(0, 3, 5, 1, 2, 4).contiguous().reshape(-1, C, self.H_sp, self.W_sp)
+        lepe = func(x)
         lepe = lepe.reshape(-1, self.num_heads, C // self.num_heads, self.H_sp * self.W_sp).permute(0, 1, 3, 2).contiguous()
         return v, lepe
 
     def forward(self, temp):
         B, _, C, H, W = temp.shape
-        ### padding for split window
+        # padding for split window
         H_pad = (self.H_sp - H % self.H_sp) % self.H_sp
         W_pad = (self.W_sp - W % self.W_sp) % self.W_sp
         top_pad = H_pad // 2
@@ -414,11 +415,11 @@ class SCSWMHSA(nn.Module):
         H_ = H + H_pad
         W_ = W + W_pad
 
-        qkv = F.pad(temp, [left_pad, right_pad, top_pad, down_pad])  ### B,3,C,H',W'
+        qkv = F.pad(temp, [left_pad, right_pad, top_pad, down_pad])  # B,3,C,H',W'
         qkv = qkv.permute(1, 0, 2, 3, 4)
 
         q, k, v = qkv[0], qkv[1], qkv[2]
-        ### Img2Window
+        # Img2Window
         q = self.im2cswin_shuffle(q)
         k = self.im2cswin_shuffle(k)
         v, lepe = self.get_lepe(v, self.get_v)
@@ -428,7 +429,7 @@ class SCSWMHSA(nn.Module):
         attn = self.attn_drop(attn)
         x = (attn @ v) + lepe
 
-        ### Window2Img
+        # Window2Img
         x = windows2img_shuffle(x, self.H_sp, self.W_sp, H_, W_, self.num_heads)  # B H_ W_ C
         x = x[:, top_pad:H + top_pad, left_pad:W + left_pad, :]
         x = x.reshape(B, -1, C)
@@ -445,7 +446,7 @@ class UP(nn.Module):
         self.bn2 = nn.BatchNorm2d(out_channel)
         self.act2 = nn.GELU()
 
-    def forward(self,x):
+    def forward(self, x):
         x = self.conv1(x)
         x = self.act1(self.bn1(x))
         x = F.interpolate(x, scale_factor=2, mode='bilinear')
@@ -464,7 +465,7 @@ class CONVM(nn.Module):
         self.bn2 = nn.BatchNorm2d(out_channel)
         self.act2 = nn.GELU()
 
-    def forward(self,x):
+    def forward(self, x):
         x = self.conv1(x)
         x = self.act1(self.bn1(x))
         x = self.conv2(x)
@@ -476,7 +477,7 @@ class FeatureFusionModule(torch.nn.Module):
     def __init__(self, in_channels, out_channels, num_class):
         super().__init__()
         self.in_channels = in_channels
-        self.convblock = nn.Conv2d(in_channels, out_channels, 3 ,padding=1)
+        self.convblock = nn.Conv2d(in_channels, out_channels, 3, padding=1)
         self.bn1 = nn.BatchNorm2d(out_channels)
         self.act1 = nn.GELU()
         self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
@@ -491,7 +492,7 @@ class FeatureFusionModule(torch.nn.Module):
         x = torch.cat(up_feature, dim=1)
         assert self.in_channels == x.size(1), 'in_channels of ConvBlock should be {}'.format(x.size(1))
         feature = self.convblock(x)
-        feature = self.act1(self.bn1(feature))  
+        feature = self.act1(self.bn1(feature))
 
         x = self.avgpool(x)
         x = self.act2(self.conv1(x))
@@ -508,7 +509,7 @@ class FeatureFusionModule(torch.nn.Module):
 
 class Fuse(nn.Module):
 
-    def __init__(self,in_,out,scale,num_class):
+    def __init__(self, in_, out, scale, num_class):
         super().__init__()
         self.scale = scale
         self.conv1 = nn.Conv2d(in_, out, 3, padding=1)
@@ -545,14 +546,14 @@ class LECSFormer(nn.Module):
         use_checkpoint (bool): Whether to use checkpointing to save memory. Default: False
     '''
     def __init__(self,
-                img_size=224, patch_size=4, in_channels=3, num_classes=1, embed_dim=64,
-                depths=[2, 2, 2, 2],
-                num_heads= [2, 4, 8, 16],
-                split_size=[1, 3, 7, 7],
-                mlp_ratio=4, qkv_bias=False, qk_scale=None,
-                drop_rate=0.1, attn_drop_rate=0.1, drop_path_rate=0.1,
-                norm_layer=nn.LayerNorm, patch_norm=True,
-                use_checkpoint=False, **kwargs):
+                 img_size=224, patch_size=4, in_channels=3, num_classes=1, embed_dim=64,
+                 depths=[2, 2, 2, 2],
+                 num_heads=[2, 4, 8, 16],
+                 split_size=[1, 3, 7, 7],
+                 mlp_ratio=4, qkv_bias=False, qk_scale=None,
+                 drop_rate=0.1, attn_drop_rate=0.1, drop_path_rate=0.1,
+                 norm_layer=nn.LayerNorm, patch_norm=True,
+                 use_checkpoint=False, **kwargs):
         super().__init__()
 
         self.num_class = num_classes
@@ -560,7 +561,7 @@ class LECSFormer(nn.Module):
         self.embed_dim = embed_dim
         self.patch_norm = patch_norm
         self.mlp_ratio = mlp_ratio
-        self.patch_embed = PatchEmbed(img_size=img_size, patch_size=patch_size,in_channels=in_channels,embed_dim=embed_dim)
+        self.patch_embed = PatchEmbed(img_size=img_size, patch_size=patch_size, in_channels=in_channels, embed_dim=embed_dim)
         self.patches_resolution = self.patch_embed.patches_resolution
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]
         self.layers = nn.ModuleList()
@@ -578,8 +579,9 @@ class LECSFormer(nn.Module):
                                drop=drop_rate, attn_drop=attn_drop_rate,
                                drop_path=dpr[sum(depths[:i_layer]):sum(depths[:i_layer + 1])],
                                norm_layer=norm_layer,
-                               downsample=Merge_Block if (
-                                       i_layer > 0) else None,
+                               downsample=Merge_Block
+                               if (i_layer > 0)
+                               else None,
                                use_checkpoint=use_checkpoint)
             self.layers.append(layer)
 
@@ -614,22 +616,22 @@ class LECSFormer(nn.Module):
             nn.init.constant_(m.weight, 1.0)
 
     def forward_features(self, x):
-        H, W = self.patches_resolution[0],self.patches_resolution[1]
+        H, W = self.patches_resolution[0], self.patches_resolution[1]
         x = self.patch_embed(x)
         stage = []
         for i, layer in enumerate(self.layers):
             x = layer(x)
             temp = rearrange(x, ' b (h w) (c) -> b c h w ', h=H // (2 ** i), w=W // (2 ** i))
             stage.append(temp)
-        return stage 
+        return stage
 
     def forward_up_features(self, stage):
         x_1_1 = self.decode1_1(stage[3])
         x_1_2 = self.decode1_2(x_1_1)
         x_1_3 = self.decode1_3(x_1_2)
 
-        x_2_1 = self.decode2_1(torch.add(stage[2],x_1_1))
-        x_2_2 = self.decode2_2(torch.add(x_2_1,x_1_2))
+        x_2_1 = self.decode2_1(torch.add(stage[2], x_1_1))
+        x_2_2 = self.decode2_2(torch.add(x_2_1, x_1_2))
 
         x_3_1 = self.decode3_1(stage[1] + x_2_1 + x_1_2)
 
@@ -645,25 +647,4 @@ class LECSFormer(nn.Module):
         aux2 = self.aux2(up_feature[1])
         aux3 = self.aux3(up_feature[2])
         aux4 = self.aux4(up_feature[3])
-        return x, [aux1,aux2,aux3,aux4]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        return x, [aux1, aux2, aux3, aux4]

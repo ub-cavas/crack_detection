@@ -80,18 +80,18 @@
 # # del variables
 # gc.collect()
 
-import scipy
-import torch
-import torchvision
-import tqdm
-import ml_collections
-import medpy
-import h5py
 import cv2
 import einops
-import timm
-import yacs
+import h5py
+import medpy
 import numpy
+import torch
+import torchvision
+import timm
+import tqdm
+import scipy
+# import ml_collections
+# import yacs
 
 print(f"scipy {scipy.__version__}")
 print(f"torch {torch.__version__}")

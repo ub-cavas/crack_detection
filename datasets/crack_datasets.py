@@ -1,10 +1,12 @@
-
+# Default Python Packages
+import os
+import random as r
+# Installed Packages
 import cv2
 import numpy as np
-import random as r
-import os
 import torch
 import torch.utils.data as data
+
 
 class Crack_Datasets(data.Dataset):
     def __init__(self, data_root, img_list, img_size, mode='train') -> None:
@@ -18,15 +20,15 @@ class Crack_Datasets(data.Dataset):
             self.imgID = f.readlines()
         self.num = len(self.imgID)
 
-    def __getitem__(self, index) :
-        image,label = read_files(self.data_root, self.imgID[index].strip(), self.img_size, mode=self.mode)
+    def __getitem__(self, index):
+        image, label = read_files(self.data_root, self.imgID[index].strip(), self.img_size, mode=self.mode)
 
         # augmentation
         if self.mode == 'train':
-            image,label = random_scale_and_creat_patch(image,label,self.img_size[0],self.img_size[1])
-            image,label = random_flip(image,label)
+            image, label = random_scale_and_creat_patch(image, label, self.img_size[0], self.img_size[1])
+            image, label = random_flip(image, label)
         else:
-            label = np.expand_dims(label,axis=-1)
+            label = np.expand_dims(label, axis=-1)
 
         # normalization
         image = (image.astype(np.float32) - (114., 121., 134.)) / 255.0
@@ -39,9 +41,9 @@ class Crack_Datasets(data.Dataset):
         image = np2Tensor(image)
         label = np2Tensor(label)
 
-        label = label[0,:,:].unsqueeze_(0)
+        label = label[0, :, :].unsqueeze_(0)
 
-        sample = {'image':image,'label':label}
+        sample = {'image': image, 'label': label}
         sample['name'] = self.imgID[index].strip()
 
         return sample
@@ -50,25 +52,25 @@ class Crack_Datasets(data.Dataset):
         return self.num
 
 
-def read_files(data_root,file_name,img_size,mode):
-    image_name = os.path.join(data_root,'images', file_name + '.jpg')
-    label_name = os.path.join(data_root,'masks', file_name + '.png')
+def read_files(data_root, file_name, img_size, mode):
+    image_name = os.path.join(data_root, 'images', file_name + '.jpg')
+    label_name = os.path.join(data_root, 'masks', file_name + '.png')
     if mode == 'train':
         image = cv_imread(image_name)
         label = cv_imread(label_name)
     else:
         image = cv_imread(image_name)
-        image = cv2.resize(image, (img_size[0],img_size[1]), interpolation=cv2.INTER_CUBIC)
+        image = cv2.resize(image, (img_size[0], img_size[1]), interpolation=cv2.INTER_CUBIC)
         label = cv_imread(label_name)
-        label = cv2.resize(label, (img_size[0],img_size[1]),interpolation=cv2.INTER_NEAREST)
+        label = cv2.resize(label, (img_size[0], img_size[1]), interpolation=cv2.INTER_NEAREST)
 
     return image, label
 
 
 def cv_imread(file_path):
-    img = cv2.imdecode(np.fromfile(file_path, dtype=np.uint8),-1)
+    img = cv2.imdecode(np.fromfile(file_path, dtype=np.uint8), -1)
     if len(img.shape) > 2 and img.shape[2] == 4:
-        img = cv2.cvtColor(img,cv2.COLOR_BGRA2BGR)
+        img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
     return img
 
 
