@@ -3,21 +3,17 @@ Under development
 =======
 
 ## Dataset Location and Structure
-The dataset used for this project is stored in a shared Box folder. Access it using this link: [Dataset Link] (https://buffalo.app.box.com/folder/294130463025).
+The dataset used for this project is stored in a shared Box folder. Access it using this link: [Dataset Link](https://buffalo.app.box.com/folder/294130463025).
 
 **Folder Structure in Box**
- Datasets/
- |
-  Crack_Dataset_Name/
-  |
-   images/
-   |
-    image_name.jpg
-   masks/
-   |
-    mask_name.png
-   train.txt
-   val.txt
+- Datasets/
+    - Crack_Dataset_Name/
+        - images/
+            - image_name.jpg
+        - masks/
+            - mask_name.png
+    - train.txt
+    - val.txt
 
 ### How to Use the Dataset
 - Download the required `Crack_Dataset_Name/` folder from the box link.
