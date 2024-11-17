@@ -30,3 +30,5 @@
 [17:08:14.643] Namespace(root_path='datasets/CrackLS80', num_classes=1, output_dirs='output/crackls80', max_epochs=100, batch_size=6, n_gpu=2, deterministic=1, base_lr=0.001, img_size=[512, 512], seed=44, cfg='configs/config.yaml', resume=None, accumulation_steps=None, cache_mode='part', opts=None, zip=False, use_checkpoint=False, amp_opt_level='O1', tag=None, eval=False, throughput=False)
 [17:08:14.665] 10 iterations per epoch. 1000 max iterations 
 [17:09:07.858] iteration 1 : loss : 5.772596, mid_ce_loss: 2.763336, loss_ce: 3.009261
+[20:42:45.093] Namespace(root_path='datasets/CrackLS80', num_classes=1, output_dirs='output/crackls80/', max_epochs=100, batch_size=6, n_gpu=2, deterministic=1, base_lr=0.001, img_size=[512, 512], seed=44, cfg='configs/config.yaml', resume=None, accumulation_steps=None, cache_mode='part', opts=None, zip=False, use_checkpoint=False, amp_opt_level='O1', tag=None, eval=False, throughput=False)
+[20:42:45.113] 10 iterations per epoch. 1000 max iterations 

@@ -11,9 +11,9 @@ from dotenv import load_dotenv
 # Packages from this repo
 from networks.LECSFormer import LECSFormer
 from trainer import trainer
+from config import get_config
 # from symbol import parameters
 # from webbrowser import get
-# from config import get_config
 
 
 load_dotenv()
@@ -53,7 +53,7 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    # config = get_config(args)
+    config = get_config(args)
 
     if not args.deterministic:
         cudnn.benchmark = True
