@@ -6,3 +6,8 @@ ml-collections
 medpy
 scipy
 h5py
+opencv-python
+einops
+timm
+yacs
+# torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118

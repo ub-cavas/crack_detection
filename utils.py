@@ -1,14 +1,17 @@
+# Installed Packages
 import numpy as np
 import torch
-from medpy import metric
-from scipy.ndimage import zoom
 import torch.nn as nn
-import SimpleITK as sitk
-import cv2
-import os
-from torch.autograd import Variable
 import torch.nn.functional as F
-import time
+# from medpy import metric
+# from scipy.ndimage import zoom
+# import SimpleITK as sitk
+# import cv2
+# import os
+# from torch.autograd import Variable
+# import time
+
+
 class DiceLoss(nn.Module):
     def __init__(self, n_classes):
         super(DiceLoss, self).__init__()
@@ -47,23 +50,25 @@ class DiceLoss(nn.Module):
             class_wise_dice.append(1.0 - dice.item())
             loss += dice * weight[i]
         return loss / self.n_classes
+    
+
 def cross_entropy_loss_RCF(prediction, labelf, beta=1.1):
     label = labelf.long()
     mask = labelf.clone()
-    num_positive = torch.sum(label==1).float()
-    num_negative = torch.sum(label==0).float()
+    num_positive = torch.sum(label == 1).float()
+    num_negative = torch.sum(label == 0).float()
     mask[label == 0] = beta * num_positive / (num_positive + num_negative)
     mask[label == 1] = 1.0 * num_negative / (num_positive + num_negative)
-    cost = F.binary_cross_entropy_with_logits(
-            prediction, labelf, weight=mask, reduction='mean')
-
+    cost = F.binary_cross_entropy_with_logits(prediction, labelf, weight=mask, reduction='mean')
     return cost
 
-def dice_loss(target,predictive,ep=1e-8):
+
+def dice_loss(target, predictive, ep=1e-8):
     intersection = 2 * torch.sum(predictive * target) + ep
     union = torch.sum(predictive) + torch.sum(target) + ep
     loss = 1 - intersection / union
     return loss
+
 
 def sum_tensor(inp, axes, keepdim=False):
     # copy from: https://github.com/MIC-DKFZ/nnUNet/blob/master/nnunet/utilities/tensor_utilities.py
@@ -75,6 +80,7 @@ def sum_tensor(inp, axes, keepdim=False):
         for ax in sorted(axes, reverse=True):
             inp = inp.sum(int(ax))
     return inp
+
 
 class SSLoss(nn.Module):
     def __init__(self, apply_nonlin=None, batch_dice=False, do_bg=True, smooth=1.,
@@ -136,6 +142,3 @@ class SSLoss(nn.Module):
         ss = ss.mean()
 
         return ss
-
-
-
