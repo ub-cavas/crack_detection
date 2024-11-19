@@ -1,45 +1,29 @@
+# Default Python Packages
 import argparse
 import logging
 import os
 import random
 import sys
+# Installed Packages
+import cv2
 import numpy as np
 import torch
-import torch.backends.cudnn as cudnn
 import torch.nn as nn
+from dotenv import load_dotenv
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+# Packages in this repo
+from config import get_config
 from datasets.crack_datasets import Crack_Datasets
 from networks.LECSFormer import LECSFormer
-from config import get_config
-from collections import OrderedDict
-import cv2
+# import torch.backends.cudnn as cudnn
+# from collections import OrderedDict
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--root_path', type=str,
-                     default='/home/ai3/student/zhaonan/crack_dataset/CrackLS315_ori_test_40',
-                    # default='/home/ai3/student/zhaonan/crack_dataset/ct260_crop_test_200',
-                    help='data dir')
-parser.add_argument('--num_classes', type=int, default=1, help='output channel of network')
-parser.add_argument('--output_dir', type=str, default='output', help='output dir')
-parser.add_argument('--checkpoints',type=str, default='output/crackls315/epoch_69.pth', help='weights')
-parser.add_argument('--batch_size', type=int, default=1, help='batch_size per gpu')
-parser.add_argument('--img_size', type=list, default=[512,512], help='input patch size of network input')
-parser.add_argument('--seed', type=int, default=44, help='random seed')
-parser.add_argument('--cfg', type=str, default='configs/config.yaml', metavar="FILE", help='path to config file', )
-parser.add_argument('--resume', help='resume from checkpoint')
-parser.add_argument('--accumulation-steps', type=int, help="gradient accumulation steps")
-parser.add_argument('--use-checkpoint', action='store_true', help="whether to use gradient checkpointing to save memory")
-parser.add_argument("--opts", help="Modify config options by adding 'KEY VALUE' pairs. ", default=None, nargs='+')
-parser.add_argument('--zip', action='store_true', help='use zipped dataset instead of folder dataset')
-parser.add_argument('--cache-mode', type=str, default='part', choices=['no', 'full', 'part'],
-                    help='no: no cache, ' 'full: cache all data,' 'part: sharding the dataset into nonoverlapping pieces and only cache one piece')
-parser.add_argument('--amp-opt-level', type=str, default='O1', choices=['O0', 'O1', 'O2'], help='mixed precision opt level, if O0, no amp is used')
-parser.add_argument('--tag', help='tag of experiment')
-parser.add_argument('--eval', action='store_true', help='Perform evaluation only')
-parser.add_argument('--throughput', action='store_true', help='Test throughput only')
-args = parser.parse_args()
-config = get_config(args)
+
+load_dotenv()
+DATASET_PATH = os.getenv("DATASET_PATH")
+OUTPUT_PATH = os.getenv("OUTPUT_PATH")
+
 
 def inference(args, model, test_save_path=None):
     test_data = Crack_Datasets(data_root=args.root_path,
@@ -56,31 +40,61 @@ def inference(args, model, test_save_path=None):
             outputs, mid_fea = model(image)
             out = torch.sigmoid(outputs).squeeze(0)
             out = out.detach().cpu().numpy()
-            cv2.imwrite(os.path.join(test_save_path, case_name + '.png'), out.squeeze(0)*255)
+            cv2.imwrite(os.path.join(test_save_path, case_name + '.png'), out.squeeze(0) * 255)
     return "Testing Finished!"
 
-if __name__ == "__main__":
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--root_path', type=str,
+                        default=os.path.join(DATASET_PATH, 'val.txt'),
+                        #  default='/home/ai3/student/zhaonan/crack_dataset/CrackLS315_ori_test_40',
+                        # default='/home/ai3/student/zhaonan/crack_dataset/ct260_crop_test_200',
+                        help='data dir')
+    parser.add_argument('--num_classes', type=int, default=1, help='output channel of network')
+    parser.add_argument('--output_dir', type=str, default='output', help='output dir')
+    parser.add_argument('--checkpoints', type=str, default=os.path.join(OUTPUT_PATH, 'epoch_69.pth'), help='weights')
+    parser.add_argument('--batch_size', type=int, default=1, help='batch_size per gpu')
+    parser.add_argument('--img_size', type=list, default=[512, 512], help='input patch size of network input')
+    parser.add_argument('--seed', type=int, default=44, help='random seed')
+    parser.add_argument('--cfg', type=str, default='configs/config.yaml', metavar="FILE", help='path to config file', )
+    parser.add_argument('--resume', help='resume from checkpoint')
+    parser.add_argument('--accumulation-steps', type=int, help="gradient accumulation steps")
+    parser.add_argument('--use-checkpoint', action='store_true', help="whether to use gradient checkpointing to save memory")
+    parser.add_argument("--opts", help="Modify config options by adding 'KEY VALUE' pairs. ", default=None, nargs='+')
+    parser.add_argument('--zip', action='store_true', help='use zipped dataset instead of folder dataset')
+    parser.add_argument('--cache-mode', type=str, default='part', choices=['no', 'full', 'part'],
+                        help='no: no cache, ' 'full: cache all data,' 'part: sharding the dataset into nonoverlapping pieces and only cache one piece')
+    parser.add_argument('--amp-opt-level', type=str, default='O1', choices=['O0', 'O1', 'O2'], help='mixed precision opt level, if O0, no amp is used')
+    parser.add_argument('--tag', help='tag of experiment')
+    parser.add_argument('--eval', action='store_true', help='Perform evaluation only')
+    parser.add_argument('--throughput', action='store_true', help='Test throughput only')
+
+    args = parser.parse_args()
+
+    config = get_config(args)
+    
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
 
     model = LECSFormer(img_size=args.img_size,
-                    patch_size=config.MODEL.LECSFormer.PATCH_SIZE,
-                    in_channels=config.MODEL.LECSFormer.IN_CHANS,
-                    num_classes=args.num_classes,
-                    embed_dim=config.MODEL.LECSFormer.EMBED_DIM,
-                    depths=config.MODEL.LECSFormer.DEPTHS,
-                    num_heads=config.MODEL.LECSFormer.NUM_HEADS,
-                    window_size=config.MODEL.LECSFormer.WINDOW_SIZE,
-                    mlp_ratio=config.MODEL.LECSFormer.MLP_RATIO,
-                    qkv_bias=config.MODEL.LECSFormer.QKV_BIAS,
-                    qk_scale=config.MODEL.LECSFormer.QK_SCALE,
-                    drop_rate=config.MODEL.DROP_RATE,
-                    drop_path_rate=config.MODEL.DROP_PATH_RATE,
-                    patch_norm=config.MODEL.LECSFormer.PATCH_NORM,
-                    use_checkpoint=config.TRAIN.USE_CHECKPOINT
-                    ).cuda()
+                       patch_size=config.MODEL.LECSFormer.PATCH_SIZE,
+                       in_channels=config.MODEL.LECSFormer.IN_CHANS,
+                       num_classes=args.num_classes,
+                       embed_dim=config.MODEL.LECSFormer.EMBED_DIM,
+                       depths=config.MODEL.LECSFormer.DEPTHS,
+                       num_heads=config.MODEL.LECSFormer.NUM_HEADS,
+                       window_size=config.MODEL.LECSFormer.WINDOW_SIZE,
+                       mlp_ratio=config.MODEL.LECSFormer.MLP_RATIO,
+                       qkv_bias=config.MODEL.LECSFormer.QKV_BIAS,
+                       qk_scale=config.MODEL.LECSFormer.QK_SCALE,
+                       drop_rate=config.MODEL.DROP_RATE,
+                       drop_path_rate=config.MODEL.DROP_PATH_RATE,
+                       patch_norm=config.MODEL.LECSFormer.PATCH_NORM,
+                       use_checkpoint=config.TRAIN.USE_CHECKPOINT
+                       ).cuda()
 
     model = nn.DataParallel(model)
     check_points = torch.load(args.checkpoints)
@@ -89,12 +103,12 @@ if __name__ == "__main__":
     # for k,v in check_points.items():
     #     name = k[7:]
     #     new_ckpt[name] = v
-    msg = model.load_state_dict(check_points,strict=True)
+    msg = model.load_state_dict(check_points, strict=True)
     checkpoints_name = args.checkpoints.split('/')[-1]
 
     log_folder = './test_log/test_log_'
     os.makedirs(log_folder, exist_ok=True)
-    logging.basicConfig(filename=log_folder + '/'+ checkpoints_name+".txt", level=logging.INFO, format='[%(asctime)s.%(msecs)03d] %(message)s', datefmt='%H:%M:%S')
+    logging.basicConfig(filename=log_folder + '/' + checkpoints_name + ".txt", level=logging.INFO, format='[%(asctime)s.%(msecs)03d] %(message)s', datefmt='%H:%M:%S')
     logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
     logging.info(str(args))
     logging.info(checkpoints_name)
@@ -104,3 +118,5 @@ if __name__ == "__main__":
     inference(args, model, test_save_path)
 
 
+if __name__ == "__main__":
+    main()

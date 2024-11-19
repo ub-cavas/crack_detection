@@ -2,10 +2,11 @@
 # LECSFormer
 
 # --------------------------------
-
+# Default Python Packages
 import os
-import yaml
+# Installed Packages
 from yacs.config import CfgNode as CN
+import yaml
 
 _C = CN()
 
@@ -23,7 +24,7 @@ _C.DATA.DATA_PATH = ''
 # Dataset name
 _C.DATA.DATASET = 'CRACK'
 # Input image size
-_C.DATA.IMG_SIZE = [512,512]
+_C.DATA.IMG_SIZE = [512, 512]
 # Interpolation to resize image (random, bilinear, bicubic)
 _C.DATA.INTERPOLATION = 'bicubic'
 # Use zipped dataset instead of folder dataset
@@ -77,7 +78,7 @@ _C.TRAIN = CN()
 _C.TRAIN.START_EPOCH = 0
 _C.TRAIN.EPOCHS = 100
 _C.TRAIN.WARMUP_EPOCHS = 20
-_C.TRAIN.WEIGHT_DECAY = 0 
+_C.TRAIN.WEIGHT_DECAY = 0
 # 0.0005
 _C.TRAIN.BASE_LR = 1e-4
 _C.TRAIN.WARMUP_LR = 5e-7
