@@ -1,0 +1,4 @@
+try.py
+.env
+datasets/CrackLS80/
+*__pycache__/

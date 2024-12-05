@@ -1,0 +1,3 @@
+[flake8]
+ignore = E261, E402, E501, W293, W504, F405, F403, E101, F841
+exclude = .git, .env, build, cmake-build-*, **/temp/, *results/, requirements.txt, try.py
