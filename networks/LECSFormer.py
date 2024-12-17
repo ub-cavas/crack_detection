@@ -1,18 +1,38 @@
 # Installed Packages
 from einops import rearrange
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 
 
+# The Custom DropPath to cut down the timm package dependency
+class DropPath(nn.Module):
+    """Stochastic Depth as DropPath."""
+    def __init__(self, drop_prob=0.0):
+        super(DropPath, self).__init__()
+        self.drop_prob = drop_prob
+
+    def forward(self, x):
+        if self.drop_prob == 0.0 or not self.training:
+            return x
+        # Generate binary mask
+        keep_prob = 1 - self.drop_prob
+        random_tensor = keep_prob + torch.rand((x.shape[0],) + (1,) * (x.ndim - 1), dtype=x.dtype, device=x.device)
+        random_tensor.floor_()  # Convert to 0 or 1
+        return x / keep_prob * random_tensor
+
+
 class PatchEmbed(nn.Module):
     def __init__(self, img_size=224, patch_size=4, in_channels=3, embed_dim=64, norm_layer=nn.BatchNorm2d):
         super().__init__()
 
-        self.img_size = to_2tuple(img_size)
-        self.patch_size = to_2tuple(patch_size)
+        # self.img_size = to_2tuple(img_size)
+        # self.patch_size = to_2tuple(patch_size)
+
+        # Replace `to_2tuple` with a custom inline method or built-in tuple logic
+        self.img_size = (img_size, img_size) if isinstance(img_size, int) else tuple(img_size)
+        self.patch_size = (patch_size, patch_size) if isinstance(patch_size, int) else tuple(patch_size)
         self.patches_resolution = [self.img_size[0] // self.patch_size[0], self.img_size[1] // self.patch_size[1]]
         self.num_patches = self.patches_resolution[0] * self.patches_resolution[1]
 
@@ -83,6 +103,16 @@ class BasicLayer(nn.Module):
                 x = blk(x)
         return x
 
+def drop_path(x, drop_prob: float = 0., training: bool = False):
+    if drop_prob == 0. or not training:
+        return x
+    keep_prob = 1 - drop_prob
+    shape = (x.shape[0],) + (1,) * (x.ndim - 1)
+    random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
+    random_tensor.floor_()  # binarize
+    output = x.div(keep_prob) * random_tensor
+    return output
+    
 
 class LECSWinBlock(nn.Module):
     def __init__(self, dim, resolution, num_heads,
@@ -522,6 +552,32 @@ class Fuse(nn.Module):
         outputs = self.activation(outputs)
         outputs = self.conv2(outputs)
         return outputs
+
+# Replacement of timm package trunc_normal_ function to resolve dependency
+def trunc_normal_(tensor, mean=0.0, std=0.02, a=-2.0, b=2.0):
+    """
+    Fills the input tensor with values drawn from a truncated normal distribution.
+    
+    Args:
+        tensor (torch.Tensor): The tensor to fill.
+        mean (float): Mean of the normal distribution.
+        std (float): Standard deviation of the normal distribution.
+        a (float): Minimum value for truncation (in standard deviations).
+        b (float): Maximum value for truncation (in standard deviations).
+    """
+    # Generate values from a truncated normal distribution
+    with torch.no_grad():
+        size = tensor.shape
+        tmp = torch.normal(mean, std, size, device=tensor.device, dtype=tensor.dtype)
+        
+        # Truncate values outside [a, b]
+        valid = (tmp >= mean + a * std) & (tmp <= mean + b * std)
+        while not valid.all():
+            tmp = torch.where(valid, tmp, torch.normal(mean, std, size, device=tensor.device, dtype=tensor.dtype))
+            valid = (tmp >= mean + a * std) & (tmp <= mean + b * std)
+        
+        tensor.copy_(tmp)
+    return tensor
 
 
 class LECSFormer(nn.Module):
